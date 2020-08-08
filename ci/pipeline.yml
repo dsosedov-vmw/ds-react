@@ -1,0 +1,38 @@
+---
+resources:
+- name: ds-react
+  type: git
+  icon: github
+  source:
+    uri: https://github.com/dsosedov-vmw/ds-react
+
+jobs:
+- name: test-build-deploy
+  public: true
+  plan:
+  - get: ds-react
+    trigger: true
+  - task: test
+    config:
+      inputs:
+      - name: ds-react
+      platform: linux
+      image_resource:
+        type: registry-image
+        source: { repository: busybox }
+      run:
+        path: yarn
+        args:
+        - test
+  - task: build
+    config:
+      inputs:
+      - name: ds-react
+      platform: linux
+      image_resource:
+        type: registry-image
+        source: { repository: busybox }
+      run:
+        path: yarn
+        args:
+        - build
