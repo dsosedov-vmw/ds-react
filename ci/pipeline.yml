@@ -1,29 +1,39 @@
 ---
 resources:
-- name: ds-react
+- name: ds-react-repo
   type: git
   icon: github
   source:
     uri: https://github.com/dsosedov-vmw/ds-react
+- name: ds-react-app
+  type: cf
+  icon: cf
 
 jobs:
-- name: test-build-deploy
+- name: test
   public: true
   plan:
-  - get: ds-react
+  - get: ds-react-repo
     trigger: true
   - task: test
     config:
       inputs:
-      - name: ds-react
+      - name: ds-react-repo
       platform: linux
       image_resource:
         type: registry-image
         source: { repository: busybox }
       run:
-        path: yarn
+        path: echo
         args:
         - test
+- name: build
+  public: true
+  plan:
+  - get: ds-react-repo
+    passed:
+    - test
+    trigger: true
   - task: build
     config:
       inputs:
@@ -33,6 +43,26 @@ jobs:
         type: registry-image
         source: { repository: busybox }
       run:
-        path: yarn
+        path: echo
         args:
         - build
+- name: deploy
+  public: true
+  plan:
+  - get: ds-react-repo
+    passed:
+    - build
+    trigger: true
+  - task: deploy
+    config:
+      inputs:
+      - name: ds-react
+      platform: linux
+      image_resource:
+        type: registry-image
+        source: { repository: busybox }
+      run:
+        path: echo
+        args:
+        - deploy
+  - put: ds-react-app
