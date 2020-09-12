@@ -5,16 +5,44 @@ resources:
   icon: github
   source:
     uri: https://github.com/dsosedov-vmw/ds-react
+- name: gh-release
+  type: github-release
+  icon: github
+  source:
+    owner: ((github-username))
+    repository: ds-react
+    access_token: ((github-token))
 - name: ds-react-app
   type: cf
-  icon: cf
+  icon: server
+  source:
+    api: ((cf-api))
+    username: ((cf-username))
+    password: ((cf-password))
+    organization: ((cf-org))
+    space: ((cf-space))
 
 jobs:
-- name: test
-  public: true
+- name: release
   plan:
   - get: ds-react-repo
     trigger: true
+  - task: install
+    config:
+      inputs:
+      - name: ds-react-repo
+      outputs:
+      - name: ds-react-repo
+      platform: linux
+      image_resource:
+        type: registry-image
+        source:
+          repository: dsosedovpvtl/yarn
+      run:
+        dir: ds-react-repo
+        path: yarn
+        args:
+        - install
   - task: test
     config:
       inputs:
@@ -22,47 +50,78 @@ jobs:
       platform: linux
       image_resource:
         type: registry-image
-        source: { repository: busybox }
+        source:
+          repository: dsosedovpvtl/yarn
       run:
-        path: echo
+        dir: ds-react-repo
+        path: yarn
         args:
         - test
-- name: build
-  public: true
-  plan:
-  - get: ds-react-repo
-    passed:
-    - test
-    trigger: true
+        - --watchAll=false
   - task: build
     config:
       inputs:
       - name: ds-react-repo
-      platform: linux
-      image_resource:
-        type: registry-image
-        source: { repository: busybox }
-      run:
-        path: echo
-        args:
-        - build
-- name: deploy
-  public: true
-  plan:
-  - get: ds-react-repo
-    passed:
-    - build
-    trigger: true
-  - task: deploy
-    config:
-      inputs:
+      outputs:
       - name: ds-react-repo
       platform: linux
       image_resource:
         type: registry-image
-        source: { repository: busybox }
+        source:
+          repository: dsosedovpvtl/yarn
       run:
-        path: echo
+        dir: ds-react-repo
+        path: yarn
         args:
-        - deploy
+        - build
+  - task: release
+    config:
+      inputs:
+      - name: ds-react-repo
+      outputs:
+      - name: release
+      platform: linux
+      image_resource:
+        type: registry-image
+        source:
+          repository: busybox
+      run:
+        dir: ds-react-repo
+        path: ci/tasks/release
+  - put: gh-release
+    inputs:
+    - release
+    params:
+      name: release/name
+      tag: release/tag
+      body: release/body
+      globs:
+      - release/artifact.tar.gz
+- name: deploy
+  plan:
+  - get: gh-release
+    passed:
+    - release
+    trigger: true
+  - task: unzip
+    config:
+      inputs:
+      - name: gh-release
+      outputs:
+      - name: gh-release
+      platform: linux
+      image_resource:
+        type: registry-image
+        source:
+          repository: busybox
+      run:
+        dir: gh-release
+        path: tar
+        args:
+        - xvzf
+        - artifact.tar.gz
   - put: ds-react-app
+    inputs:
+    - gh-release
+    params:
+      manifest: gh-release/manifest.yml
