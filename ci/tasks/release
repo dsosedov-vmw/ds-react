@@ -1,5 +1,5 @@
 #!/bin/sh
 tar cvzf ../release/artifact.tar.gz manifest.yml build/.
-echo '0.0.6' > name
-echo '0.0.6' > tag
-touch body
+echo '0.0.6' > ../release/name
+echo '0.0.6' > ../release/tag
+touch ../release/body
